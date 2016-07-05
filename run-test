@@ -1,0 +1,127 @@
+#!/bin/bash
+
+# Help function
+function help {
+    cat << EOF
+Wrapper to run host OS updates on fleet of devices over ssh.
+$0 <OPTION>
+
+Options:
+  -h, --help
+        Display this help and exit.
+
+  -u <UUID>, --uuid <UUID>
+        Update this UUID.
+
+  -s <SSH_HOST>, --ssh-host <SSH_HOST>
+        SSH host to be used in ssh connections. and other places. Please have them called
+
+  -t <TESTNAME>
+        Run this test.
+EOF
+}
+
+# Log function helper
+function log {
+    # Address log levels
+    case $1 in
+        ERROR)
+            loglevel=ERROR
+            shift
+            ;;
+        WARN)
+            loglevel=WARNING
+            shift
+            ;;
+        *)
+            loglevel=LOG
+            ;;
+    esac
+    ENDTIME=$(date +%s)
+    if [ "z$LOG" == "zyes" ]; then
+        printf "[%09d%s%s\n" "$(($ENDTIME - $STARTTIME))" "][$loglevel]" "$1" | tee -a $LOGFILE
+    else
+        printf "[%09d%s%s\n" "$(($ENDTIME - $STARTTIME))" "][$loglevel]" "$1"
+    fi
+    if [ "$loglevel" == "ERROR" ]; then
+        exit 1
+    fi
+}
+
+#
+# MAIN
+#
+
+# Get the absolute script location
+pushd `dirname $0` > /dev/null 2>&1
+SCRIPTPATH=`pwd`
+popd > /dev/null 2>&1
+
+EXTERNAL=" \
+    $SCRIPTPATH/tests-helpers/test-lib.sh \
+    "
+
+# Log timer
+STARTTIME=$(date +%s)
+
+# Parse arguments
+while [[ $# > 0 ]]; do
+    arg="$1"
+
+    case $arg in
+        -h|--help)
+            help
+            exit 0
+            ;;
+        -u|--uuid)
+            if [ -z "$2" ]; then
+                log ERROR "\"$1\" argument needs a value."
+            fi
+            UUID="$2"
+            shift
+            ;;
+        -s|--sshhost)
+            if [ -z "$2" ]; then
+                log ERROR "\"$1\" argument needs a value."
+            fi
+            SSH_HOST=$2
+            shift
+            ;;
+        -t|--testname)
+            if [ -z "$2" ]; then
+                log ERROR "\"$1\" argument needs a value."
+            fi
+            TESTNAME=$2
+            shift
+            ;;
+        *)
+            log ERROR "Unrecognized option $1."
+            ;;
+    esac
+    shift
+done
+
+# Check argument(s)
+if [ -z "$UUID" ] || [ -z "$SSH_HOST" ] || [ -z "$TESTNAME" ]; then
+    log ERROR "No UUID and/or SSH_HOST and/or TESTNAME specified."
+fi
+
+# Find test
+TESTPATH=$(find $SCRIPTPATH -type f -name $TESTNAME)
+if [ -z "$TESTPATH" ]; then
+    log ERROR "$TESTNAME not found."
+fi
+
+log "Will run '$TESTNAME' on $UUID"
+
+log "Transfering test on target..."
+scp -o Hostname=$UUID.vpn $EXTERNAL $TESTPATH $SSH_HOST:/tmp
+if [ $? -ne 0 ]; then
+    log ERROR "Failed to transfer test on target"
+fi
+
+log "Running test on target..."
+ssh $SSH_HOST -o Hostname=$UUID.vpn /tmp/$TESTNAME
+if [ $? -ne 0 ]; then
+    exit 1
+fi
