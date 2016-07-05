@@ -3,7 +3,7 @@
 # Help function
 function help {
     cat << EOF
-Wrapper to run host OS updates on fleet of devices over ssh.
+Run tests
 $0 <OPTION>
 
 Options:
@@ -16,7 +16,7 @@ Options:
   -s <SSH_HOST>, --ssh-host <SSH_HOST>
         SSH host to be used in ssh connections. and other places. Please have them called
 
-  -t <TESTNAME>
+  -t <TESTNAME>, --testname <TESTNAME>
         Run this test.
 EOF
 }
@@ -56,10 +56,6 @@ function log {
 pushd `dirname $0` > /dev/null 2>&1
 SCRIPTPATH=`pwd`
 popd > /dev/null 2>&1
-
-EXTERNAL=" \
-    $SCRIPTPATH/tests-helpers/test-lib.sh \
-    "
 
 # Log timer
 STARTTIME=$(date +%s)
@@ -102,26 +98,53 @@ while [[ $# > 0 ]]; do
 done
 
 # Check argument(s)
-if [ -z "$UUID" ] || [ -z "$SSH_HOST" ] || [ -z "$TESTNAME" ]; then
-    log ERROR "No UUID and/or SSH_HOST and/or TESTNAME specified."
+if [ -z "$UUID" ] || [ -z "$SSH_HOST" ]; then
+    log ERROR "No UUID and/or SSH_HOST specified."
 fi
 
-# Find test
-TESTPATH=$(find $SCRIPTPATH -type f -name $TESTNAME)
-if [ -z "$TESTPATH" ]; then
-    log ERROR "$TESTNAME not found."
+if [ -z "$TESTNAME" ]; then
+    log WARN "No testname specified. Will run all."
+    TESTPATHS=$(find $SCRIPTPATH/tests -type f)
+else
+    TESTPATHS=$(find $SCRIPTPATH -type f -name $TESTNAME)
 fi
 
-log "Will run '$TESTNAME' on $UUID"
+if [ -z "$TESTPATHS" ]; then
+    log ERROR "No tests found."
+fi
 
-log "Transfering test on target..."
-scp -o Hostname=$UUID.vpn $EXTERNAL $TESTPATH $SSH_HOST:/tmp
+log "Transfering helpers on target..."
+HELPERS=$(find $SCRIPTPATH/helpers -type f)
+scp -o Hostname=$UUID.vpn $HELPERS $SSH_HOST:/tmp &> /dev/null
 if [ $? -ne 0 ]; then
-    log ERROR "Failed to transfer test on target"
+    log ERROR "Failed to transfer helpers on target"
 fi
 
-log "Running test on target..."
-ssh $SSH_HOST -o Hostname=$UUID.vpn /tmp/$TESTNAME
-if [ $? -ne 0 ]; then
+FAILED=0
+TOTAL=0
+
+echo
+for tp in $TESTPATHS; do
+    tn=$(basename $tp)
+    log "[$tn] Transfering test on target..."
+    scp -o Hostname=$UUID.vpn $tp $SSH_HOST:/tmp/$tn  &> /dev/null
+    if [ $? -ne 0 ]; then
+        log ERROR "Failed to transfer test on target"
+    fi
+
+    log "[$tn] Running on target..."
+    ssh $SSH_HOST -o Hostname=$UUID.vpn /tmp/$tn
+    if [ $? -ne 0 ]; then
+        FAILED=$((FAILED+1))
+    fi
+    TOTAL=$((TOTAL+1))
+    echo
+done
+
+log "Test results"
+log "Failed tests: $FAILED"
+log "Total tests : $TOTAL"
+
+if [ $FAILED -gt 0 ]; then
     exit 1
 fi

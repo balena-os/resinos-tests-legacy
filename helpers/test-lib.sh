@@ -4,7 +4,15 @@ function log {
     # Address log levels
     case $1 in
         ERROR)
-            loglevel="ERR "
+            loglevel="ERROR"
+            shift
+            ;;
+        PASSED)
+            loglevel="PASSED"
+            shift
+            ;;
+        FAILED)
+            loglevel="FAILED"
             shift
             ;;
         WARN)
@@ -20,7 +28,10 @@ function log {
             ;;
     esac
     echo "[$loglevel] $@"
-    if [ "$loglevel" == "ERR " ]; then
+    if [ "$loglevel" == "ERROR" ] || [ "$loglevel" == "FAILED" ]; then
         exit 1
+    fi
+    if [ "$loglevel" == "PASSED" ]; then
+        exit 0
     fi
 }
