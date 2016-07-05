@@ -1,0 +1,15 @@
+#!/bin/bash
+
+# Source the helpers
+if [ -f "/tmp/test-lib.sh" ]; then
+    source /tmp/test-lib.sh
+else
+    echo "ERROR: Can't find test-lib.sh"
+    exit 1
+fi
+
+#
+# TEST
+#
+
+log PASSED

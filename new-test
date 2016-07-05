@@ -1,0 +1,104 @@
+#!/bin/bash
+
+TEMPLATE=dummy
+
+# Help function
+function help {
+    cat << EOF
+Create a new test script
+$0 <OPTION>
+
+Options:
+  -h, --help
+        Display this help and exit.
+
+  -c <CATEGORY>, --category <CATEGORY>
+        Create the test in this category.
+        Hierarchy can pe provided. Ex.: mytests/cat/dogs.
+
+  -t <TESTNAME>, --testname <TESTNAME>
+        Use this test name.
+EOF
+}
+
+# Log function helper
+function log {
+    # Address log levels
+    case $1 in
+        ERROR)
+            loglevel=ERROR
+            shift
+            ;;
+        WARN)
+            loglevel=WARNING
+            shift
+            ;;
+        *)
+            loglevel=LOG
+            ;;
+    esac
+    echo "[$loglevel] $@"
+    if [ "$loglevel" == "ERROR" ]; then
+        exit 1
+    fi
+}
+
+#
+# MAIN
+#
+
+# Get the absolute script location
+pushd `dirname $0` > /dev/null 2>&1
+SCRIPTPATH=`pwd`
+popd > /dev/null 2>&1
+
+# Parse arguments
+while [[ $# > 0 ]]; do
+    arg="$1"
+
+    case $arg in
+        -h|--help)
+            help
+            exit 0
+            ;;
+        -c|--category)
+            if [ -z "$2" ]; then
+                log ERROR "\"$1\" argument needs a value."
+            fi
+            CATEGORY=$2
+            shift
+            ;;
+        -t|--testname)
+            if [ -z "$2" ]; then
+                log ERROR "\"$1\" argument needs a value."
+            fi
+            TESTNAME=$2
+            shift
+            ;;
+        *)
+            log ERROR "Unrecognized option $1."
+            ;;
+    esac
+    shift
+done
+
+# Check argument(s)
+if [ -z "$CATEGORY" ] || [ -z "$TESTNAME" ]; then
+    log ERROR "No CATEGORY and/or TESTNAME specified."
+fi
+
+if [ -f "$SCRIPTPATH/tests/$CATEGORY/$TESTNAME" ]; then
+    log ERROR "Test already exists."
+fi
+
+log "Create category..."
+if ! mkdir -p $SCRIPTPATH/tests/$CATEGORY; then
+    log ERROR "Failed to create the category hierarchy."
+fi
+
+log "Create test..."
+if ! cp $SCRIPTPATH/templates/$TEMPLATE $SCRIPTPATH/tests/$CATEGORY/$TESTNAME; then
+    log ERROR "Failed to create the category hierarchy."
+fi
+
+log "$TESTNAME created in $CATEGORY"
