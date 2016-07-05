@@ -17,8 +17,8 @@ while read line; do
     realmd5=`md5sum $file | awk '{ print $1 }'`
     if [ "$md5" != "$realmd5" ]; then
         log DEBUG "$file has MD5=$realmd5 when it should be $md5 ."
-        log ERROR "TEST FAILED"
+        log FAILED
     fi
 done < /resin-root.fingerprint
 
-log INFO "TEST PASSED"
+log PASSED
