@@ -1,6 +1,8 @@
 #!/bin/bash
 
+#
 # Source the helpers
+#
 if [ -f "/tmp/test-lib.sh" ]; then
     source /tmp/test-lib.sh
 else

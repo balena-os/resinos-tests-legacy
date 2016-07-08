@@ -18,6 +18,10 @@ Options:
 
   -t <TESTNAME>, --testname <TESTNAME>
         Use this test name.
+
+  -m <MACHINE_SLUG>, --machine-slug <MACHINE_SLUG>
+        Have this test specific to a machine.
+        It's an optional argument and when not provided, test will be machine independent.
 EOF
 }
 
@@ -75,6 +79,13 @@ while [[ $# > 0 ]]; do
             TESTNAME=$2
             shift
             ;;
+        -m|--machine-slug)
+            if [ -z "$2" ]; then
+                log ERROR "\"$1\" argument needs a value."
+            fi
+            MACHINE_SLUG=$2
+            shift
+            ;;
         *)
             log ERROR "Unrecognized option $1."
             ;;
@@ -87,17 +98,21 @@ if [ -z "$CATEGORY" ] || [ -z "$TESTNAME" ]; then
     log ERROR "No CATEGORY and/or TESTNAME specified."
 fi
 
-if [ -f "$SCRIPTPATH/tests/$CATEGORY/$TESTNAME" ]; then
+if [ -z "$MACHINE_SLUG" ]; then
+    $MACHINE_SLUG=all
+fi
+
+if [ -f "$SCRIPTPATH/tests/$MACHINE_SLUG/$CATEGORY/$TESTNAME" ]; then
     log ERROR "Test already exists."
 fi
 
 log "Create category..."
-if ! mkdir -p $SCRIPTPATH/tests/$CATEGORY; then
+if ! mkdir -p $SCRIPTPATH/tests/$MACHINE_SLUG/$CATEGORY; then
     log ERROR "Failed to create the category hierarchy."
 fi
 
 log "Create test..."
-if ! cp $SCRIPTPATH/templates/$TEMPLATE $SCRIPTPATH/tests/$CATEGORY/$TESTNAME; then
+if ! cp $SCRIPTPATH/templates/$TEMPLATE $SCRIPTPATH/tests/$MACHINE_SLUG/$CATEGORY/$TESTNAME; then
     log ERROR "Failed to create the category hierarchy."
 fi
 

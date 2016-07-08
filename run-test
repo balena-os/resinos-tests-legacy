@@ -105,12 +105,26 @@ fi
 if [ -z "$TESTNAME" ]; then
     log WARN "No testname specified. Will run all."
     TESTPATHS=$(find $SCRIPTPATH/tests -type f)
+    slug=$(ssh $SSH_HOST -o Hostname=$UUID.vpn jq -r .deviceType /mnt/conf/config.json)
+    if [ -z "$slug" ]; then
+        log ERROR "Can't find machine slug"
+    fi
+    if [ -d $SCRIPTPATH/tests/$slug ]; then
+        TESTPATHS="$TESTPATHS $(find $SCRIPTPATH/tests/$slug -type f)"
+    else
+        log WARN "No machine specific tests for $slug."
+    fi
 else
-    TESTPATHS=$(find $SCRIPTPATH -type f -name $TESTNAME)
+    TESTPATHS=$(find $SCRIPTPATH/tests/all -type f -name $TESTNAME)
 fi
 
 if [ -z "$TESTPATHS" ]; then
     log ERROR "No tests found."
+else
+    log "The following tests will be ran:"
+    for tp in $TESTPATHS; do
+        log "   $tp"
+    done
 fi
 
 log "Transfering helpers on target..."

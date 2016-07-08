@@ -1,0 +1,29 @@
+#!/bin/bash
+
+#
+# Source the helpers
+#
+if [ -f "/tmp/test-lib.sh" ]; then
+    source /tmp/test-lib.sh
+else
+    echo "ERROR: Can't find test-lib.sh"
+    exit 1
+fi
+
+#
+# TEST
+#
+BACKUP_FILES=" \
+    /etc/group- \
+    /etc/passwd- \
+    /etc/group- \
+    /etc/gshadow- \
+    "
+for file in $BACKUP_FILES; do
+    if [ -f "$file" ]; then
+        log DEBUG "Backup file $file found on the rootfs."
+        log FAILED
+    fi
+done
+
+log PASSED
