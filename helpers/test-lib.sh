@@ -1,6 +1,6 @@
-#!/bin/bash
+#!/bin/sh
 
-function log {
+log() {
     # Address log levels
     case $1 in
         ERROR)
