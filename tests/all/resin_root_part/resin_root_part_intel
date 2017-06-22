@@ -10,7 +10,7 @@ CONF=/mnt/boot/EFI/BOOT/grub.cfg
 # we expect this to be '2' on a fresh system. '3' is also good.
 current=$(mount | grep 'on / type' | sed -e 's/ .*//' -e 's/^.*\(.\)/\1/') # e.g. 2
 dev=$(mount | grep 'on / type' | sed -e 's/ .*//' -e 's/[0-9]$//') # e.g. /dev/sda
-curlabel=$(e2label "$dev$current") # e.g. resin-rootA
+curlabel=$(/sbin/e2label "$dev$current") # e.g. resin-rootA
 
 # assume $CONF exists and is valid on an intel
 
@@ -18,7 +18,7 @@ if [ "$current" != "2" ] && [ "$current" != "3" ]; then
     log ERROR "unexpected root partition number"
 fi
 
-conflabel=$(sed -ne 's/^.* LABEL=\([^ ]*\).*/\1/p' $CONF) # e.g. resin-rootB
+conflabel=$(sed -ne 's/^.*LABEL=\([^ ]*\).*/\1/p' $CONF) # e.g. resin-rootB
 if [ "$curlabel" != "$conflabel" ]; then
     rm -f /mnt/boot/.test
     log FAILED "\$curlabel ($curlabel) != \$conflabel ($conflabel)"
@@ -40,8 +40,8 @@ else
 
     log INFO "copying root partition from $dev$current to $dev$other..."
     dd "if=$dev$current" "of=$dev$other" bs=1M
-    e2label "$dev$other" "$otherlabel"
-    sed -i -e "s# LABEL=[^ ]*# LABEL=$otherlabel#" "$CONF" # $dev$other contains slashes
+    /sbin/e2label "$dev$other" "$otherlabel"
+    sed -i -e "s#LABEL=[^ ]*#LABEL=$otherlabel#" "$CONF" # $dev$other contains slashes
     touch /mnt/boot/.test
     log INFO "rebooting..."
     /sbin/reboot & exit 0 # prevents hanging the ssh session
