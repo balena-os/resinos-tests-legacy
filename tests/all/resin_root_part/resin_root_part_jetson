@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+
+. /tmp/test-lib.sh
+CONF=/mnt/boot/extlinux/extlinux.conf
+
+# we expect this to be '2' on a fresh system. '3' is also good.
+current=$(mount | grep 'on / type' | sed -e 's/ .*//' -e 's/^.*\(.\)/\1/') # e.g. 2
+dev=$(mount | grep 'on / type' | sed -e 's/ .*//' -e 's/[0-9]$//') # e.g. /dev/mmcblk1p
+
+if [ "$current" != "2" ] && [ "$current" != "3" ]; then
+    log ERROR "unexpected root partition number"
+fi
+
+configured=$(sed -ne 's/^.* root=[^ ]*\([^ ]\).*/\1/p' $CONF) # e.g. 2
+if [ "$current" != "$configured" ]; then
+    rm -f /mnt/boot/.test
+    log FAILED "\$current ($current) != \$configured ($configured)"
+fi
+
+if [ -e /mnt/boot/.test ]; then
+    rm /mnt/boot/.test
+    log PASSED "OK"
+else
+    test "$current" = "2" && other=3 || other=2
+
+    log INFO "copying root partition from $dev$current to $dev$other..."
+    dd "if=$dev$current" "of=$dev$other" bs=1M
+    sed -i -e "s# root=[^ ]*# root=$dev$other#" "$CONF" # $dev$other contains slashes
+    touch /mnt/boot/.test
+    log INFO "rebooting..."
+   /sbin/reboot & exit 0 # prevents hanging the ssh session
+fi
